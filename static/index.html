@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digit Recognizer</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --background-color: #ecf0f1;
+            --text-color: #34495e;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: var(--secondary-color);
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        p {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-btn {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background-color: #2980b9;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 1.5rem auto;
+            display: none;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #result {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--secondary-color);
+        }
+
+        #debug {
+            margin-top: 1.5rem;
+            text-align: left;
+            border: 1px solid #e0e0e0;
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border-radius: var(--border-radius);
+            font-size: 0.9rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MNIST Digit Recognizer</h1>
+        <p>Upload an image of a handwritten digit (0-9) to see the prediction.</p>
+        <div class="upload-container">
+            <label for="imageUpload" class="upload-btn">
+                Choose Image
+                <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+            </label>
+        </div>
+        <img id="imagePreview" src="" alt="Image preview">
+        <div id="result"></div>
+        <div id="debug"></div>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreview = document.getElementById('imagePreview');
+        const result = document.getElementById('result');
+        const debug = document.getElementById('debug');
+
+        function logDebug(message) {
+            debug.innerHTML += `<p>${message}</p>`;
+            debug.scrollTop = debug.scrollHeight;
+            console.log(message);
+        }
+
+        imageUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                logDebug(`File selected: ${file.name} (${file.type}, ${file.size} bytes)`);
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    logDebug('Image preview loaded');
+                }
+                reader.readAsDataURL(file);
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const apiUrl = 'http://127.0.0.1:8000/predict-image/';
+                logDebug(`Sending request to server: ${apiUrl}`);
+                
+                fetch(apiUrl, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    logDebug(`Server responded with status: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    logDebug(`Received data from server: ${JSON.stringify(data)}`);
+                    result.textContent = `Prediction: ${data.prediction}`;
+                })
+                .catch(error => {
+                    logDebug(`Fetch error: ${error.message}`);
+                    if (error instanceof TypeError) {
+                        logDebug('Network error: This could be due to CORS or the server not being reachable');
+                    }
+                    result.textContent = 'An error occurred during prediction.';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
